@@ -1,0 +1,7 @@
+
+
+
+hotMarkup_2p_01 <- read_csv("~/Dropbox/SSEL/hotelling_marketups/raw_data/20170209 2p 01 hotellingmarkup stacked.csv")
+hotMarkup_4p_01 <- read_csv("~/Dropbox/SSEL/hotelling_marketups/raw_data/20170209 4p 01 hotellingmarkup stacked.csv")
+
+
