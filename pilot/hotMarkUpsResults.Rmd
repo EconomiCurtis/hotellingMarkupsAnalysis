@@ -1,0 +1,957 @@
+---
+title: "On the dynamics of mark-ups, results section"
+author: "Curtis Kephart and David Munro"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+    fig_height: 4
+    fig_width: 7
+  html_notebook:
+    toc: yes
+    toc_depth: 2
+  html_document:
+    toc: yes
+    toc_depth: 2
+---
+```{r, echo=FALSE, error=FALSE,  message=FALSE, warning=FALSE, cache=FALSE, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(tidyr)
+source("etl.r")
+library(memisc)
+```
+
+# Summary Statistics
+
+Summary of sessions and subjects.
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+
+df = bind_rows(
+  sesDat2p %>% 
+    mutate(playerNum = "Two Players"),
+  sesDat4p %>% 
+    mutate(playerNum = "Four Players")
+) %>% 
+  mutate(
+    Date = as.Date(participant.time_started) %>% as.character()
+  ) 
+
+df2 = df %>%
+  group_by(Date, playerNum) %>%
+  summarise(
+    n = length(unique(participant.code))
+  )
+
+df = df %>%
+  group_by(playerNum) %>%
+  summarise(
+    n = length(unique(participant.code)),
+    periods = max(player.period_number)
+  )
+
+kable(
+  format = "markdown",
+  df,
+  align = c("l","c","c"),
+  col.names = c("Number of Players", "Subjects", "Periods")
+)
+
+```
+
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+#payment
+df = SsPay %>%
+  dplyr::mutate(
+    Pay = player.payoff + 10,
+    Pay_chg = Pay %% 1,
+    Pay = as.integer(Pay) %>% as.numeric(),
+    Pay_chg = ceiling(Pay_chg * 4) / 4,
+    Pay = Pay + Pay_chg
+  ) %>%
+  dplyr::select(
+    Pay,  participant.label, session.code,   participant.time_started , player.payoff
+  )
+
+
+# kable(
+#   format = "markdown",
+#   df,
+#   align = c("l","c","c")
+#   # col.names = c("Number of Players", "Subjects", "Periods")
+# )
+
+```
+
+Sessions were run at the Unversity of California Santa Cruz' LEEPS Lab on February 8th and 9th 2017. 
+
+Subjects earned on average \$`r mean(df$player.payoff) %>% round(2)` from the experiment. After a \$10 show-up fee and rounding up to the quarter subjects walked away on average with \$`r mean(df$Pay) %>% round(2)`
+
+The experiment was conducted with oTree (*Citation: Chen, D.L., Schonger, M., Wickens, C., 2016. oTree - An open-source platform for laboratory, online and field experiments. Journal of Behavioral and Experimental Finance, vol 9: 88-97*) subjects were recruited with ORSEE (*Citation: Ben Greiner (2015), Subject Pool Recruitment Procedures: Organizing Experiments with ORSEE, Journal of the Economic Science Association 1 (1), 114-125. http://link.springer.com/article/10.1007/s40881-015-0004-4 *)
+
+
+## No data for Two-Player 0.25 Shopping Cost Treatment
+
+In pilots, due to data issues there is no data for the two-player shopping cost `t = 0.25` treatment. Subjects in this treatment were 
+
+# Hypothesis 1 - competitiveness and mark-ups
+
+**Hypothesis 1**. *Static mark-ups will be lower in more competitive (higher N) markets.*
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+
+df = bind_rows(
+  sesDat2p %>% 
+    dplyr::filter(player.transport_cost != 0.25) %>%
+    mutate(playerNum = "Two Players"),
+  sesDat4p %>% 
+    mutate(playerNum = "Four Players")
+)
+
+df2 = df %>%
+  group_by(playerNum, player.transport_cost, player.period_number, participant.code) %>%
+  dplyr::summarise(
+    Price = mean(player.price),
+    Price_Median = median(player.price),
+    price_se_Up1 = Price + se(player.price),
+    price_se_Dwn1 = Price - se(player.price)
+  )
+
+
+
+ggplot(
+  df2
+) +
+  facet_grid(playerNum ~ .) +
+  geom_violin(
+    aes(y = Price,
+        x = player.transport_cost,
+        group = player.transport_cost),
+    alpha = 0.3,
+    color = "grey70"
+  ) +
+  geom_ribbon(
+    data = df2 %>% 
+      group_by(playerNum, player.transport_cost) %>%
+      summarise(
+        mean_price = mean(Price),
+        price_se_Up1 = mean_price + se(Price),
+        price_se_Dwn1 = mean_price - se(Price)
+      ), 
+    aes(
+      x = player.transport_cost,
+      ymax = price_se_Up1,
+      ymin = price_se_Dwn1
+    ),
+    alpha = .2
+  ) +
+  geom_line(
+    data = df2 %>% 
+      group_by(playerNum, player.transport_cost) %>%
+      summarise(
+        mean_price = mean(Price)
+      )  , 
+    aes(
+      x = player.transport_cost,
+      y = mean_price
+    )
+  ) +
+  geom_jitter(
+    aes(
+      y = Price,
+      x = player.transport_cost
+    ),
+    
+    data = df2,
+    width = 0.02,
+    height = 0,
+    alpha = 0.3) + 
+  scale_x_continuous(
+    breaks = c(0.1, 0.25, 0.5, 0.75, 1.0)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Shopping Cost",
+    y = "Price",
+    title = "Average Period Prices"
+  )
+
+
+
+
+
+  
+```
+
+In the plot above, 
+
+- each dot is the average price per subject in one period (20 subperiods) with fixed shopping costs and player count. 
+- violins are similarly based on average player-period prices. 
+- the line is the average price for that player-number, shopping cost comvination, 
+- ribben is the confidence interval. 
+- A very similar plot appears when looking at all prices over all subperiods. 
+
+
+
+Comparing prices in both treatments. 
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+
+df = bind_rows(
+  sesDat2p %>% 
+    dplyr::filter(player.transport_cost != 0.25) %>%
+    mutate(playerNum = "Two Players"),
+  sesDat4p %>% 
+    mutate(playerNum = "Four Players")
+)
+
+
+df2 = df %>%  
+  group_by(playerNum, player.transport_cost, participant.code, player.period_number) %>%
+  dplyr::summarise(
+    player.price = mean(player.price)
+  ) %>%
+  group_by(playerNum, player.transport_cost) %>%
+  dplyr::summarise(
+    Price = paste(mean(player.price) %>% round(2), " (±", se(player.price) %>% round(4),  ")", sep="")
+  )
+
+kable(
+  format = "markdown",
+  df2 %>%tidyr::spread(
+    player.transport_cost, Price
+  ),
+  align = c("l","c","c","c","c","c"),
+  col.names = c("", "s = 0.1","s = 0.25","s = 0.5","s = 0.75","s = 1"),
+  caption = "adsfse"
+)
+
+```
+
+Now, looking just at the later half of each period, subperiods 11 to 20, (remove from final)
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+
+
+df2 = df %>% 
+  dplyr::filter(
+    subsession.round_number > 10
+  ) %>%
+  group_by(playerNum, player.transport_cost, participant.code, player.period_number) %>%
+  dplyr::summarise(
+    player.price = mean(player.price)
+  ) %>%
+  group_by(playerNum, player.transport_cost) %>%
+  dplyr::summarise(
+    Price = paste(mean(player.price) %>% round(2), " (±", se(player.price) %>% round(4),  ")", sep="")
+  )
+
+kable(
+  format = "markdown",
+  df2 %>%tidyr::spread(
+    player.transport_cost, Price
+  ),
+  align = c("l","c","c","c","c","c"),
+  col.names = c("", "t = 0.1","t = 0.25","t = 0.5","t = 0.75","t = 1"),
+  caption = "adsfse"
+)
+
+```
+
+
+Strong evidence for Hypothesis 1. 
+
+- Looking at the average prices within a period (all 20 subperiods) with the same player number and transport cost, there is a statistically significant difference between prices at each transport level between player number treatments. 
+- Even comparing `t = 1.0` in the four player game -- the transport cost in which the four-player game had the highest prices --
+to `t = 0.1` in the two player game -- in which prices were the lowest in the two-player game -- the two player game has statistically significantly higher prices (p-value < 0.001). 
+
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+df = bind_rows(
+  sesDat2p %>% 
+    dplyr::filter(player.transport_cost != 0.25) %>%
+    mutate(playerNum = "Two Players"),
+  sesDat4p %>% 
+    mutate(playerNum = "Four Players")
+)
+
+
+df2 = df %>%  
+  group_by(playerNum, player.transport_cost, participant.code, player.period_number) %>%
+  dplyr::summarise(
+    player.price = mean(player.price)
+  )
+
+
+
+with(df2, 
+     t.test(player.price[(playerNum == "Two Players" & player.transport_cost == 0.1)],player.price[(playerNum == "Four Players" & player.transport_cost == 1)]
+     )
+)
+with(df2, 
+     wilcox.test(player.price[(playerNum == "Two Players" & player.transport_cost == 0.1)], 
+            player.price[(playerNum == "Four Players" & player.transport_cost == 1.0)]
+     )
+)
+
+
+```
+
+# Hypothesis 2 - shipping costs and mark-ups
+
+**Hypothesis 2**. *There is a positive relationship between shopping costs and mark-ups.*
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+# two player
+df = bind_rows(
+  sesDat2p %>% 
+    dplyr::filter(player.transport_cost != 0.25) %>%
+    mutate(playerNum = "Two Players"),
+  sesDat4p %>% 
+    mutate(playerNum = "Four Players")
+)
+
+df2 = df %>%
+    dplyr::filter(playerNum == "Two Players")%>%
+  group_by(playerNum, player.transport_cost, player.period_number, participant.code) %>%
+  dplyr::summarise(
+    Price = mean(player.price),
+    Price_Median = median(player.price),
+    price_se_Up1 = Price + se(player.price),
+    price_se_Dwn1 = Price - se(player.price)
+  )
+
+p1 = ggplot(
+  df2
+) +
+  geom_violin(
+    aes(y = Price,
+        x = player.transport_cost,
+        group = player.transport_cost),
+    alpha = 0.3,
+    color = "grey70"
+  ) +
+  geom_ribbon(
+    data = df2 %>% 
+      group_by(playerNum, player.transport_cost) %>%
+      summarise(
+        mean_price = mean(Price),
+        price_se_Up1 = mean_price + se(Price),
+        price_se_Dwn1 = mean_price - se(Price)
+      ), 
+    aes(
+      x = player.transport_cost,
+      ymax = price_se_Up1,
+      ymin = price_se_Dwn1
+    ),
+    alpha = .2
+  ) +
+  geom_line(
+    data = df2 %>% 
+      group_by(playerNum, player.transport_cost) %>%
+      summarise(
+        mean_price = mean(Price)
+      )  , 
+    aes(
+      x = player.transport_cost,
+      y = mean_price
+    )
+  ) +
+  geom_jitter(
+    aes(
+      y = Price,
+      x = player.transport_cost
+    ),
+    
+    data = df2,
+    width = 0.02,
+    height = 0,
+    alpha = 0.3) + 
+  scale_x_continuous(
+    breaks = c(0.1, 0.25, 0.5, 0.75, 1.0)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Shopping Cost",
+    y = "Price",
+    title = "Average Period Prices - Two Players"
+  ) +
+  coord_cartesian(xlim = c(0,1.1), ylim = c(0,1)) 
+p1
+```
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE,  cache=FALSE}
+# Four player
+df = bind_rows(
+  sesDat2p %>% 
+    dplyr::filter(player.transport_cost != 0.25) %>%
+    mutate(playerNum = "Two Players"),
+  sesDat4p %>% 
+    mutate(playerNum = "Four Players")
+)
+
+df2 = df %>%
+    dplyr::filter(playerNum == "Four Players")%>%
+  group_by(playerNum, player.transport_cost, player.period_number, participant.code) %>%
+  dplyr::summarise(
+    Price = mean(player.price),
+    Price_Median = median(player.price),
+    price_se_Up1 = Price + se(player.price),
+    price_se_Dwn1 = Price - se(player.price)
+  )
+
+
+
+p2 = ggplot(
+  df2
+) +
+  geom_violin(
+    aes(y = Price,
+        x = player.transport_cost,
+        group = player.transport_cost),
+    alpha = 0.3,
+    color = "grey70"
+  ) +
+  geom_ribbon(
+    data = df2 %>% 
+      group_by(playerNum, player.transport_cost) %>%
+      summarise(
+        mean_price = mean(Price),
+        price_se_Up1 = mean_price + se(Price),
+        price_se_Dwn1 = mean_price - se(Price)
+      ), 
+    aes(
+      x = player.transport_cost,
+      ymax = price_se_Up1,
+      ymin = price_se_Dwn1
+    ),
+    alpha = .2
+  ) +
+  geom_line(
+    data = df2 %>% 
+      group_by(playerNum, player.transport_cost) %>%
+      summarise(
+        mean_price = mean(Price)
+      )  , 
+    aes(
+      x = player.transport_cost,
+      y = mean_price
+    )
+  ) +
+  geom_jitter(
+    aes(
+      y = Price,
+      x = player.transport_cost
+    ),
+    
+    data = df2,
+    width = 0.02,
+    height = 0,
+    alpha = 0.3) + 
+  scale_x_continuous(
+    breaks = c(0.1, 0.25, 0.5, 0.75, 1.0)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Shopping Cost",
+    y = "Price",
+    title = "Average Period Prices - Four Players"
+  ) +
+  coord_cartesian(xlim = c(0,1.1), ylim = c(0,1)) 
+p1
+p2
+
+```
+
+
+
+```{r, echo = F, eval = T, tidy = T}
+
+df = bind_rows(
+  sesDat2p %>% 
+    dplyr::filter(player.transport_cost != 0.25) %>%
+    mutate(playerNum = "Two Players"),
+  sesDat4p %>% 
+    mutate(playerNum = "Four Players")
+)
+
+df = df %>%
+  group_by(playerNum, player.transport_cost, player.period_number, participant.code) %>%
+  dplyr::summarise(
+    Price = mean(player.price)
+  )
+
+df = df %>%
+  ungroup() %>%
+  group_by(playerNum, player.transport_cost) %>%
+  summarise(
+    n=n(),
+    mean_price = mean(Price) %>% round(3),  
+    median_price = median(Price) %>% round(3),
+    se_price = (sd(Price)/(n)^0.5)  %>% round(3)
+  ) 
+
+kable(
+  format = "markdown", 
+  df,  align = c("c"),
+  col.names = c("","Shopping Cost","N","Mean Price","Median Price","Standard Error")
+)
+```
+
+
+
+- `n` that's each subject was exposed to 3 treatments of each shopping cost level. The two-player game had 16 subjects and the four-player had 24. 
+
+## Initial Look at Two-Player Game
+
+First, within the two player game, comparing prices in `t = 0.1` and `t = 1.0` (see below), there is to be a statistically significant difference. 
+
+There is a relationship between prices and shopping cost treatments. In higher shopping cost settings subjects tended to have higher prices. 
+
+- Unit of observation is an individual's average price within a period, at a set shopping cost level. 
+- A t test comparing prices between min and max shopping costs. Prices are average price at the session, participant, and period level. P-value 0.000029.
+- A MW rank sum test comparing prices between min and max shopping costs. Prices are average price at the session, participant, and period level. P-value 0.0002061.
+
+```{r, echo=FALSE}
+df =  sesDat2p %>%
+  ungroup() %>%
+  group_by(session.code, participant.code, player.transport_cost,player.period_number) %>%
+   summarise(
+     mean_price = mean(player.price)
+   )
+with(df, t.test(mean_price[player.transport_cost == 0.1], mean_price[player.transport_cost == 1.0]))
+with(df, wilcox.test(mean_price[player.transport_cost == 0.1], mean_price[player.transport_cost == 1.0]))
+
+```
+
+
+
+## Initial Look at Four-Player Game
+
+In the four-player game the relationship, at least between the lowest and highest shopping cost, appears stronger. 
+
+- A t test comparing prices between min and max shopping costs. Prices are average price at the session, participant, and period level. P-value 0.00000023.
+- A MW rank sum test comparing prices between min and max shopping costs. Prices are average price at the session, participant, and period level. P-value < 0.000001
+
+
+```{r, echo=FALSE}
+df =  sesDat4p %>%
+  ungroup() %>%
+  group_by(session.code, participant.code, player.transport_cost,player.period_number) %>%
+   summarise(
+     mean_price = mean(player.price)
+   )
+with(df, t.test(mean_price[player.transport_cost == 0.1], mean_price[player.transport_cost == 1.0]))
+with(df, wilcox.test(mean_price[player.transport_cost == 0.1], mean_price[player.transport_cost == 1.0]))
+
+```
+
+
+## Model
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE, cache=FALSE}
+
+df =  sesDat2p %>%
+  dplyr::filter(
+    player.transport_cost != 0.25
+  ) %>%
+  ungroup() %>%
+  group_by(session.code, participant.code, player.transport_cost,player.period_number) %>%
+  mutate(
+    player.round_payoff = player.round_payoff * max(subsession.round_number) #deal with f'ing t=0.25...
+  ) %>%
+  summarise(
+    price = mean(player.price),
+    median_price = median(player.price),
+    twoPlayer = 1,
+    playerNum = "Two Players"
+  )
+
+df = bind_rows(
+  df, 
+  sesDat4p %>%
+    ungroup() %>%
+    group_by(session.code, participant.code, player.transport_cost,player.period_number) %>%
+    mutate(
+      player.round_payoff = player.round_payoff * max(subsession.round_number) #deal with f'ing t=0.25...
+    ) %>%
+    summarise(
+      price = mean(player.price),
+      median_price = median(player.price),
+      twoPlayer = 0,
+      playerNum = "Four Players"
+    )
+) %>%
+  ungroup() %>%
+  dplyr::mutate(
+    stdz_price = (mean(price) - price) / sd(price)
+  )
+
+p1= ggplot(
+  df,
+  aes(
+    x = player.transport_cost,
+    y = price,
+    group = playerNum,
+    color = playerNum
+  )
+) +
+  geom_jitter(
+    aes(y = log(price)),
+    width = 0.07,
+    alpha = .4) +
+  geom_smooth(
+    formula = log(y) ~ log(x)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Shopping Cost",
+    y = "Log Price"
+    
+  )
+p1
+```
+
+Here we have a log-log model regressing prices on shopping costs, with player-number fixed effects. 
+
+$ln(P_{ip}) = \beta_0 + \beta_1 \delta_{i} +\beta_2 ln(S_{ip}) + \beta_3 Period_p + \epsilon_{(ip)}$
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE, cache=FALSE}
+
+reg1 = lm(
+  log(price) ~ twoPlayer + log(player.transport_cost),
+  df
+)
+
+summary(reg1)
+```
+
+
+- Where $P_{ip}$ is the average price for for this participant in this period, the average of 20 sub-periods. 
+- $\delta_{i}$ is an indicator equal to 1 if individual $i$ participated in the two-player treatment.
+- $S_ip$ is the shopping cost this individual faced in this period. 
+- where $Period_p$ is the period number. 
+
+In this specification, the coefficient $\beta_2$ measures the average effect of being assigned to the less competitive two-player treatment group. With $\beta_2 = 0.350138$, a 1% increase in shopping costs leads to a 0.35% increase in prices. This is significant. 
+
+# Hypothesis 3 - mark-up responsiveness to competition 
+
+**Hypothesis 3**. *Mark-ups will be less responsive to changes in shopping costs in less competitive (lower N) markets.*
+
+$ln(Price_{(i,p)}) = \beta_0 + \beta_1 \delta_{2p} + \beta_2 ln(ShoppingCost) + \beta_3 \delta_{i} ln(ShoppingCost)  + \epsilon_{(i,p)}$
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE, cache=FALSE}
+
+reg2 = lm(
+  log(price) ~ twoPlayer + log(player.transport_cost) + twoPlayer:log(player.transport_cost) ,
+  df
+)
+
+summary(reg2)
+```
+
+
+
+The coefficient $\beta_2$ estimates that a 1% increase in shopping costs will leave to a 0.45% increase in prices in the four-player game. The $\beta_3$ coefficient indicates *a one unit increase in shopping cost leads to a 28% decrease in prices in the two-player game relative to the 4-player game*". 
+
+We have strong evidence that mark-ups are less responsive to tranpostation cost changes in the less competitive treatment than the more competitive treatment. 
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE, cache=FALSE}
+
+# library(memisc)
+# library(pander)
+# 
+# mytable <- mtable(
+#   'Model 1' = reg1,
+#   'Model 2' = reg2,
+#   summary.stats = c('R-squared','F','p','N'))
+# 
+# (mytable)
+```
+
+
+| Dependent Var: $ln(P_{ip})$              | Model 1  |  | Model 2    | |
+|------------------------------------------|:--------------:|:--:|:------------:|:----:|
+|  $\delta_{i}$ (two-player)               | 0.897   | \*\*\* |  0.653    | \*\*\*  |
+|                                          | (0.049) |        | (0.068)   | |
+|  $ln(ShoppingCost)$                      | 0.347   | \*\*\* | 0.454     | \*\*\*  | 
+|                                          | (0.028) |        | (0.034)   | |
+|  $\delta_{i} \cdot ln(ShoppingCost)$     |         |        | -0.282    | \*\*\* |  
+|                                          |         |        | (0.055)   |   |
+|                                          |         |        |           | | 
+| --------------------------------------- | ------ | --- | ------ | --- |
+|  N                                        | 552    |  | 552     |  |
+
+# Hypothesis 4
+
+**Hypothesis 4**. *Collusion will be easier to form in low shopping cost environments*
+
+Define collusion
+
+## Idea 1 - Joint positive profits. 
+
+A subject is said to be 'colluding' when they and their adjacent players have jointly positive profits. 
+    - In the save of the two-player game, both players' profits are positive. In the case of the four-player game, the profits of the two players to the left and right (circle marketplace) are positive. 
+    - This poses of problem in comparing "collusion" between two and four-player games. So we should not do that. 
+
+
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE, cache=FALSE}
+
+df = sesDat2p %>%
+  dplyr::filter(
+    player.transport_cost != 0.25
+  ) %>%
+  group_by(session.code,player.transport_cost,player.transport_cost) %>%
+  dplyr::mutate(
+    numPlayer = "Two-Player",
+    profit = (player.round_payoff * max(subsession.round_number)),
+    player.loc = paste("Loc",player.loc, sep="")
+  ) %>%
+  ungroup() %>%
+  arrange(session.code, player.period_number, subsession.round_number,group.id_in_subsession, player.loc) %>%
+  dplyr::select(numPlayer, session.code, player.transport_cost, player.period_number, subsession.round_number, group.id_in_subsession, player.loc, profit)
+  
+df2p = df %>%
+  group_by(group.id_in_subsession) %>%
+  spread(player.loc, profit) %>%
+  mutate(
+    joinPosProfit = ifelse(Loc0.25 > 0 & Loc0.75 > 0, 1, 0)
+  )
+
+
+
+df4p = sesDat4p %>%
+  group_by(session.code,player.transport_cost,player.transport_cost) %>%
+  dplyr::mutate(
+    numPlayer = "Four-Player",
+    profit = (player.round_payoff),
+    player.loc = paste("Loc",player.loc, sep="")
+  ) %>%
+  ungroup() %>%
+  arrange(session.code, player.period_number, subsession.round_number,group.id_in_subsession, player.loc) %>%
+  dplyr::select(numPlayer, session.code, player.transport_cost, player.period_number, subsession.round_number, group.id_in_subsession, player.loc, profit)
+
+
+
+
+df4p = df4p %>%
+  group_by(group.id_in_subsession) %>%
+  spread(player.loc, profit) %>%
+  mutate(
+    joinPosProfit = ifelse(Loc0.125 > 0 & Loc0.375 & Loc0.625 > 0 & Loc0.875 > 0, 1, 0)
+  )
+
+
+df2 = bind_rows(
+  df4p, df2p
+)
+
+
+
+
+kable(
+  format = "markdown", 
+  bind_rows(
+    df2p %>%
+    group_by(numPlayer, player.transport_cost) %>%
+    summarise(
+      joinPosProfit_mean = mean(joinPosProfit),
+      n = length(unique(paste(group.id_in_subsession ,player.period_number)))
+    ),
+    df4p %>%
+    group_by(numPlayer, player.transport_cost) %>%
+    summarise(
+      joinPosProfit_mean = mean(joinPosProfit),
+      n = length(unique(paste(group.id_in_subsession ,player.period_number)))
+    )
+  ),  
+  align = c("c"),
+  col.names = c("","Shopping Cost","Percent of Period Joint Positive Profits","Period Group Obvservation")
+)
+
+
+```
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE, error=FALSE, cache=FALSE}
+
+
+
+ggplot(
+  df2 %>% 
+    group_by(numPlayer, player.period_number, group.id_in_subsession) %>%
+    dplyr::summarise(
+      joinPosProfit = mean(joinPosProfit),
+      player.transport_cost = unique(player.transport_cost)
+    )
+) +
+  facet_grid(numPlayer ~.) +
+  geom_violin(
+    aes(y = joinPosProfit,
+        x = player.transport_cost,
+        group = player.transport_cost),
+    alpha = 0.3,
+    color = "grey70"
+  ) +
+  geom_ribbon(
+    data = df2 %>% 
+      group_by(numPlayer, player.transport_cost) %>%
+      summarise(
+        mean_joinPosProfit = mean(joinPosProfit),
+        joinPosProfit_se_Up1 = mean_joinPosProfit + se(joinPosProfit),
+        joinPosProfit_se_Dwn1 = mean_joinPosProfit - se(joinPosProfit)
+      ), 
+    aes(
+      x = player.transport_cost,
+      ymax = joinPosProfit_se_Up1,
+      ymin = joinPosProfit_se_Dwn1
+    ),
+    alpha = .2
+  ) +
+  geom_line(
+    data = df2 %>% 
+      group_by(numPlayer, player.transport_cost) %>%
+      summarise(
+        mean_joinPosProfit = mean(joinPosProfit)
+      )  , 
+    aes(
+      x = player.transport_cost,
+      y = mean_joinPosProfit
+    )
+  ) +
+  geom_jitter(
+    aes(
+      y = joinPosProfit,
+      x = player.transport_cost
+    ),
+    width = 0.02,
+    height = 0,
+    alpha = 0.3) + 
+  scale_x_continuous(
+    breaks = c(0.1, 0.25, 0.5, 0.75, 1.0)
+  ) +
+  theme_bw() +
+  labs(
+    x = "Shopping Cost",
+    y = "Percent of Period with Joint Positive Profits",
+    title = "Joint Positive Profits"
+  )
+
+
+```
+
+There is visually suggestive evidence that with higher shopping costs, groups are better able to collude. 
+
+
+## Idea 2 - Just look at profits. 
+
+Are profits higher? 
+    - Perhaps too linked to the discussion in Hypothesis 1-3. 
+
+
+```{r, echo=FALSE}
+
+df =  sesDat2p %>%
+  ungroup() %>%
+  group_by(session.code, participant.code, player.transport_cost,player.period_number) %>%
+  mutate(
+    player.round_payoff = player.round_payoff * max(subsession.round_number) #deal with f'ing t=0.25...
+  ) %>%
+   summarise(
+     mean_profit = mean(player.round_payoff)
+   ) %>%
+  mutate(
+    NumPlayers = "two-players"
+  )
+
+df = bind_rows(
+  df, 
+  (  sesDat4p %>%
+       group_by(session.code,player.transport_cost) %>%
+       group_by(session.code, participant.code, player.transport_cost,player.period_number) %>% 
+       summarise(
+         mean_profit = mean(player.round_payoff * max(subsession.round_number))
+       ) %>%
+       filter(
+         !is.na(mean_profit)
+       ) %>%
+       mutate(
+         NumPlayers = "four-players"
+       )
+  )
+)
+
+df2 = df %>%
+  group_by(
+    player.transport_cost, NumPlayers
+  ) %>%
+  summarise(
+    mean_profit = mean(mean_profit)
+  )
+
+ggplot(
+ df
+) +
+    geom_violin(
+    aes(
+      x = (player.transport_cost),
+      y = mean_profit,
+      group = player.transport_cost
+    ), alpha = .8
+  ) +
+  geom_jitter(
+    aes(
+      x = (player.transport_cost),
+      y = mean_profit
+    ), 
+    alpha = .3,
+    width = .05, height = 0
+  ) +
+  geom_line(
+    data = df2,
+    aes(
+      y = (mean_profit), 
+      x = (player.transport_cost))
+  ) +
+  facet_grid(NumPlayers~.) +
+  theme_bw() +
+  labs(
+    x = "Shopping Cost",
+    y = "Average Period Profit",
+    title = "Average Period Profits and Shopping Costs"
+  )
+
+
+
+
+```
+
+## to do for collusion 
+
+Tailing thing; 
+
+- get into more simple dynamics of collusion.... 
+
+
+---- 
+
+```{r, echo=F, results='asis'}
+
+cat(
+  " Compiled by Curtis Kephart, curtis.kephart@nyu.edu, ",
+  " with [R Markdown](http://rmarkdown.rstudio.com) Notebook. ",
+  sep = ""
+)
+```
+
+```{r, echo=F, results='asis'}
+
+cat(
+  as.character(Sys.time())," GMT, ",
+  Sys.timezone(location = TRUE),
+  sep = ""
+)
+```
