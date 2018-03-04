@@ -7,10 +7,10 @@ library(stringr)
 # Stack data-----
 
 sessDat <- tibble()
-for (sessFile in list.files("../raw_data/production_raw_data/") %>% str_subset("hotellingmarkup")){
+for (sessFile in list.files("raw_data/production_raw_data/") %>% str_subset("hotellingmarkup")){
   sessDat = bind_rows(
     sessDat,
-    read_csv(file = glue("../raw_data/production_raw_data/", sessFile))
+    read_csv(file = glue("raw_data/production_raw_data/", sessFile))
   )
   
 }
@@ -55,7 +55,7 @@ sessDat %>%
   )
 
 # payment -------
-SsPay <- read_csv("../raw_data/production_raw_data/201710 subject payments.csv")
+SsPay <- read_csv("raw_data/production_raw_data/201710 subject payments.csv")
 # SsPay %>% 
   # group_by(Session) %>%
   # summarise(

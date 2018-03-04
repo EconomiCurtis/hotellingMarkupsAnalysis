@@ -4,17 +4,17 @@ author:
 - "Curtis Kephart"
 - "David Munro"
 output:
+  html_document:
+    toc: yes
+    toc_depth: 2
+  html_notebook:
+    toc: yes
+    toc_depth: 2
   pdf_document:
     toc: yes
     toc_depth: 2
     fig_height: 4
     fig_width: 7
-  html_notebook:
-    toc: yes
-    toc_depth: 2
-  html_document:
-    toc: yes
-    toc_depth: 2
 editor_options: 
   chunk_output_type: console
 ---
@@ -36,22 +36,20 @@ knitr::opts_chunk$set(cache=TRUE)
 
 ```{r, setup, echo=FALSE, error=FALSE,  message=FALSE, warning=FALSE, cache=FALSE, include=FALSE}
 
-
-
 library(dplyr)
 library(ggplot2)
 library(knitr)
 library(tidyr)
-library(memisc)
 
-source("../r/etl.r")
+source("r/etl.R")
+
 sessDat = sessDat %>% 
   ungroup() %>% 
   group_by(participant.code, player.period_number) %>% 
   mutate(
     playerNum = group_size_str,
     score_subperiod = lead(player.prev_round_payoff),
-    score_total = lead(player.prev_round_cumulative_payoff),
+    score_total = lead(player.prev_round_cumulative_payoff)
   )
 
 ```
