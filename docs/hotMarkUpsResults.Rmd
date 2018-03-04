@@ -36,22 +36,21 @@ knitr::opts_chunk$set(cache=TRUE)
 
 ```{r, setup, echo=FALSE, error=FALSE,  message=FALSE, warning=FALSE, cache=FALSE, include=FALSE}
 
-
-
 library(dplyr)
 library(ggplot2)
 library(knitr)
 library(tidyr)
 
 
-source("../r/etl.r")
+source("r/etl.R")
+
 sessDat = sessDat %>% 
   ungroup() %>% 
   group_by(participant.code, player.period_number) %>% 
   mutate(
     playerNum = group_size_str,
     score_subperiod = lead(player.prev_round_payoff),
-    score_total = lead(player.prev_round_cumulative_payoff),
+    score_total = lead(player.prev_round_cumulative_payoff)
   )
 
 ```
