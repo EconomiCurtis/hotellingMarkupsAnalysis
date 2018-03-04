@@ -1,0 +1,13 @@
+base
+dplyr
+ggplot2
+knitr
+tidyr
+lattice
+MASS
+memisc
+readr
+readxl
+glue
+stringr
+bindrcpp
