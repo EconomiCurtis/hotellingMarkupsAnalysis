@@ -28,10 +28,10 @@ To Do List
 
 
 ```{r util, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(cache=TRUE ) 
 ```
-
-
+ 
+    
 
 
 ```{r, setup, echo=FALSE, error=FALSE,  message=FALSE, warning=FALSE, cache=FALSE, include=FALSE}
