@@ -11,3 +11,4 @@ readxl
 glue
 stringr
 bindrcpp
+reshape2

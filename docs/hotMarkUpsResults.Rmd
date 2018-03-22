@@ -16,7 +16,7 @@ output:
     toc: yes
     toc_depth: 2
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 
@@ -29,20 +29,20 @@ To Do List
 
 ```{r util, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 knitr::opts_chunk$set(cache=TRUE ) 
+#make sure you set the working directory to the project directory. 
+
 ```
  
-    
-
 
 ```{r, setup, echo=FALSE, error=FALSE,  message=FALSE, warning=FALSE, cache=FALSE, include=FALSE}
-
 library(dplyr)
 library(ggplot2)
 library(knitr)
 library(tidyr)
 library(reshape2)
+library(glue)
 
-source("r/etl.R")
+source("../r/etl.R")
 
 sessDat = sessDat %>% 
   ungroup() %>% 
@@ -1051,19 +1051,19 @@ Want to do a regression on periods where only transport costs changed and use pe
 
 ```{r, echo=F}
 
-TranspoReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&TranspoChangeOnly!="NA")
-
-reg_transpo = lm(
-  log(player.price) ~ playerNum + log(player.transport_cost) + playerNum:log(player.transport_cost) +factor(player.period_number) +factor(session.code),
-  data = TranspoReg
-)
-
-reg_transpo = lm(
-  log(player.price) ~ factor(group_size) + log(player.transport_cost) + factor(group_size):log(player.transport_cost)+factor(player.period_number) +factor(session.code)-1,
-  data = TranspoReg %>% mutate(player.price = player.price + 0.01)
-)
-
-summary(reg_transpo)
+# TranspoReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&TranspoChangeOnly!="NA")
+# 
+# reg_transpo = lm(
+#   log(player.price) ~ playerNum + log(player.transport_cost) + playerNum:log(player.transport_cost) +factor(player.period_number) +factor(session.code),
+#   data = TranspoReg
+# )
+# 
+# reg_transpo = lm(
+#   log(player.price) ~ factor(group_size) + log(player.transport_cost) + factor(group_size):log(player.transport_cost)+factor(player.period_number) +factor(session.code)-1,
+#   data = TranspoReg %>% mutate(player.price = player.price + 0.01)
+# )
+# 
+# summary(reg_transpo)
 ```
 
 These results suggest that negative (insignificant) relationship between transport costs and prices in 2 player game, and positive, significant, relationship in the 4p game. These are the same results we had in the pilot study more or less. 
