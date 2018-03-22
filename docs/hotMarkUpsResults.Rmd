@@ -4,17 +4,17 @@ author:
 - "Curtis Kephart"
 - "David Munro"
 output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+    fig_height: 4
+    fig_width: 7
   html_document:
     toc: yes
     toc_depth: 2
   html_notebook:
     toc: yes
     toc_depth: 2
-  pdf_document:
-    toc: yes
-    toc_depth: 2
-    fig_height: 4
-    fig_width: 7
 editor_options: 
   chunk_output_type: console
 ---
@@ -40,6 +40,7 @@ library(dplyr)
 library(ggplot2)
 library(knitr)
 library(tidyr)
+library(reshape2)
 
 source("r/etl.R")
 
@@ -1000,3 +1001,69 @@ cat(
   sep = ""
 )
 ```
+
+
+Some new stuff:
+Look at how average prices change at the threshold around the first half second half change. Begin by building an indicator for what variable is changing (rp, transpo, or millcost) and only analyze data specific to those questions, otherwise you're mixing a lot of effects together.
+
+Question 1, what parameters are changing in these different periods:
+Answer: see data table below, I've figured out which paramters change in certain periods.
+```{r, echo=F}
+
+PeriodChangesFirst<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&period_half=="First Half")%>% 
+  group_by(player.period_number, session.code) %>% 
+  summarise(
+    TranspoMean = mean(player.transport_cost),
+    mcMean=mean(player.mc),
+    rpMean=mean(player.rp)
+  )
+PeriodChangesSecond<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&period_half=="Second Half")%>% 
+  group_by(player.period_number, session.code) %>% 
+  summarise(
+    TranspoMean = mean(player.transport_cost),
+    mcMean=mean(player.mc),
+    rpMean=mean(player.rp)
+  )
+
+PeriodChanges<-left_join(PeriodChangesFirst,PeriodChangesSecond,by = c("player.period_number", "session.code"))
+
+PeriodChanges<-PeriodChanges%>% 
+  mutate(
+    TranspoChange = log(TranspoMean.x)-log(TranspoMean.y),
+    mcChange=log(mcMean.x)-log(mcMean.y),
+    rpChange=log(rpMean.x)-log(rpMean.y)
+  )
+
+PeriodChanges<-PeriodChanges%>% 
+  mutate(
+    TranspoChangeOnly = ifelse(TranspoChange != 0 & mcChange == 0&rpChange==0, TranspoChange, NA),
+    mcChangeOnly = ifelse(mcChange != 0 & TranspoChange == 0&rpChange==0, mcChange, NA),
+     rpChangeOnly = ifelse(rpChange != 0 & TranspoChange == 0&mcChange==0, rpChange, NA)
+  )
+
+
+sessDat<- left_join(sessDat,PeriodChanges[,c("player.period_number","session.code","TranspoChangeOnly","mcChangeOnly","rpChangeOnly")],by=c("player.period_number", "session.code"))
+
+
+```
+
+Want to do a regression on periods where only transport costs changed and use period fixed effects to strip out the level effects of the other parameters.
+
+```{r, echo=F}
+
+TranspoReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&TranspoChangeOnly!="NA")
+
+reg_transpo = lm(
+  log(player.price) ~ playerNum + log(player.transport_cost) + playerNum:log(player.transport_cost) +factor(player.period_number) +factor(session.code),
+  data = TranspoReg
+)
+
+reg_transpo = lm(
+  log(player.price) ~ factor(group_size) + log(player.transport_cost) + factor(group_size):log(player.transport_cost)+factor(player.period_number) +factor(session.code)-1,
+  data = TranspoReg %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_transpo)
+```
+
+These results suggest that negative (insignificant) relationship between transport costs and prices in 2 player game, and positive, significant, relationship in the 4p game. These are the same results we had in the pilot study more or less. 
