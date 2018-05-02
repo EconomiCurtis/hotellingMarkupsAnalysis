@@ -7,10 +7,10 @@ library(stringr)
 # Stack data-----
 
 sessDat <- tibble()
-for (sessFile in list.files("raw_data/production_raw_data/") %>% str_subset("hotellingmarkup")){
+for (sessFile in list.files("../raw_data/production_raw_data/") %>% str_subset("hotellingmarkup")){
   sessDat = bind_rows(
     sessDat,
-    read_csv(file = glue("raw_data/production_raw_data/", sessFile))
+    read_csv(file = glue("../raw_data/production_raw_data/", sessFile))
   )
   
 }
@@ -45,17 +45,17 @@ sessDat = sessDat %>%
 
 
 
-sessDat %>%
-  filter(
-    !is.na(player.boundary_lo)
-  ) %>%
-  group_by(session.code) %>%
-  summarise(
-    price_obs = length(!is.na(player.price)) / (unique(group_size))
-  )
+# sessDat %>%
+#   filter(
+#     !is.na(player.boundary_lo)
+#   ) %>%
+#   group_by(session.code) %>%
+#   summarise(
+#     price_obs = length(!is.na(player.price)) / (unique(group_size))
+#   )
 
 # payment -------
-SsPay <- read_csv("raw_data/production_raw_data/201710 subject payments.csv")
+SsPay <- read_csv("../raw_data/production_raw_data/201710 subject payments.csv")
 # SsPay %>% 
   # group_by(Session) %>%
   # summarise(
