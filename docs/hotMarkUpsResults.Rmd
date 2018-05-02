@@ -4,14 +4,14 @@ author:
 - "Curtis Kephart"
 - "David Munro"
 output:
+  html_document:
+    toc: yes
+    toc_depth: 2
   pdf_document:
     toc: yes
     toc_depth: 2
     fig_height: 4
     fig_width: 7
-  html_document:
-    toc: yes
-    toc_depth: 2
   html_notebook:
     toc: yes
     toc_depth: 2
@@ -1029,9 +1029,9 @@ PeriodChanges<-left_join(PeriodChangesFirst,PeriodChangesSecond,by = c("player.p
 
 PeriodChanges<-PeriodChanges%>% 
   mutate(
-    TranspoChange = log(TranspoMean.x)-log(TranspoMean.y),
-    mcChange=log(mcMean.x)-log(mcMean.y),
-    rpChange=log(rpMean.x)-log(rpMean.y)
+    TranspoChange = log(TranspoMean.y)-log(TranspoMean.x),
+    mcChange=log(mcMean.y)-log(mcMean.x),
+    rpChange=log(rpMean.y)-log(rpMean.x)
   )
 
 PeriodChanges<-PeriodChanges%>% 
@@ -1054,11 +1054,6 @@ Want to do a regression on periods where only transport costs changed and use pe
 TranspoReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&TranspoChangeOnly!="NA")
 
 reg_transpo = lm(
-  log(player.price) ~ playerNum + log(player.transport_cost) + playerNum:log(player.transport_cost) +factor(player.period_number) +factor(session.code),
-  data = TranspoReg
-)
-
-reg_transpo = lm(
   log(player.price) ~ factor(group_size) + log(player.transport_cost) + factor(group_size):log(player.transport_cost)+factor(player.period_number) +factor(session.code)-1,
   data = TranspoReg %>% mutate(player.price = player.price + 0.01)
 )
@@ -1067,3 +1062,130 @@ summary(reg_transpo)
 ```
 
 These results suggest that negative (insignificant) relationship between transport costs and prices in 2 player game, and positive, significant, relationship in the 4p game. These are the same results we had in the pilot study more or less. 
+
+
+Want to make an event study plot transpo cost changes from first to second half. Need to select periods where only transpo costs are changing and other parameters are common. Going to look at extremes (select data that has transpo cost of 0.1 in first half then 0.6 in second half with mc=0.05 and rp=1, then also collect data that has transpo costs go from 0.6 to 0.1)
+
+```{r, echo=F}
+
+TranspoEvent<-subset(TranspoReg, player.mc == 0.05 & player.rp==1 &abs(TranspoChangeOnly)>1.7)
+
+TranspoEventFHUp2p<-subset(TranspoEvent, period_half == "First Half" & player.transport_cost==0.1&group_size==2)
+TranspoEventFHDown2p<-subset(TranspoEvent, period_half == "First Half" & player.transport_cost==0.6&group_size==2)
+TranspoEventSHUp2p<-subset(TranspoEvent, period_half == "Second Half" & player.transport_cost==0.6&group_size==2)
+TranspoEventSHDown2p<-subset(TranspoEvent, period_half == "Second Half" & player.transport_cost==0.1&group_size==2)
+
+TranspoEventFHUp4p<-subset(TranspoEvent, period_half == "First Half" & player.transport_cost==0.1&group_size==4)
+TranspoEventFHDown4p<-subset(TranspoEvent, period_half == "First Half" & player.transport_cost==0.6&group_size==4)
+TranspoEventSHUp4p<-subset(TranspoEvent, period_half == "Second Half" & player.transport_cost==0.6&group_size==4)
+TranspoEventSHDown4p<-subset(TranspoEvent, period_half == "Second Half" & player.transport_cost==0.1&group_size==4)
+
+ 
+    
+TrEvent4p= ggplot()+
+  geom_smooth(data=TranspoEventFHUp4p, aes(y = player.price,x = player.subperiod_number),method = "lm",color='green')+
+  geom_smooth(data=TranspoEventSHUp4p,aes(y = player.price,x = player.subperiod_number),method = "lm",color='green')+
+  geom_jitter(data=TranspoEventFHUp4p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+ 
+    geom_jitter(data=TranspoEventSHUp4p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+   
+  geom_smooth(data=TranspoEventFHDown4p, aes(y = player.price,x = player.subperiod_number),method = "lm",color='red')+
+  geom_smooth(data=TranspoEventSHDown4p,aes(y = player.price,x = player.subperiod_number),method = "lm",color='red')+
+  geom_jitter(data=TranspoEventFHDown4p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+ 
+    geom_jitter(data=TranspoEventSHDown4p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+
+  theme_bw() +
+  labs(
+    x = "Superiod",
+    y = "Price"
+  )
+TrEvent4p
+
+
+TrEvent2p= ggplot()+
+  geom_smooth(data=TranspoEventFHUp2p, aes(y = player.price,x = player.subperiod_number),method = "lm",color='green')+
+  geom_smooth(data=TranspoEventSHUp2p,aes(y = player.price,x = player.subperiod_number),method = "lm",color='green')+
+  geom_jitter(data=TranspoEventFHUp2p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+ 
+    geom_jitter(data=TranspoEventSHUp2p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+
+  geom_smooth(data=TranspoEventFHDown2p, aes(y = player.price,x = player.subperiod_number),method = "lm",color='red')+
+  geom_smooth(data=TranspoEventSHDown2p,aes(y = player.price,x = player.subperiod_number),method = "lm",color='red')+
+  geom_jitter(data=TranspoEventFHDown2p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+ 
+    geom_jitter(data=TranspoEventSHDown2p,
+    aes(y = player.price,x = player.subperiod_number),
+    width = 0.07,
+    alpha = .1)+
+  theme_bw() +
+  labs(
+    x = "Superiod",
+    y = "Price"
+  )
+TrEvent2p
+
+
+
+```
+
+Look at RP regression
+```{r, echo=F}
+
+RPReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&rpChangeOnly!="NA")
+
+
+reg_rp = lm(
+  log(player.price) ~ factor(group_size) + log(player.rp) + factor(group_size):log(player.rp)+factor(player.period_number) +factor(session.code)-1,
+  data = RPReg %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_rp)
+```
+
+Results seem to suggest that higher reserve prices (demand) increase prices in the 2p version of the game (significant at 5%). However, combining coefficients for 2p and 4p=+0.15960-0.14978= pretty much no effect for the 4 player group. This is makes sense intuitively. The rp is the upper boundary and in the 4p game, competition takes them away from that boundary and, as a result, makes it inconsequential.
+
+Next look at cost regression:
+```{r, echo=F}
+
+mcReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&mcChangeOnly!="NA")
+
+
+reg_mc = lm(
+  log(player.price) ~ factor(group_size) + log(player.mc) + factor(group_size):log(player.mc)+factor(player.period_number) +factor(session.code)-1,
+  data = mcReg %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_mc)
+```
+
+Again, some nice results here. Costs (the bottom boundary) seem to matter, as costs increase, prices increase. The effect is stronger for 4p, which is intuitive. 4p games are closer to the bottom threshold, so when costs jump that will impact them more than the 2p games where they are pricing at much higher levels.
+
+
+Look at everything together
+```{r, echo=F}
+
+AllReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21)
+
+
+reg_all = lm(
+  log(player.price) ~ factor(group_size) + log(player.mc)+log(player.rp) +log(player.transport_cost) + factor(group_size):log(player.transport_cost)+ factor(group_size):log(player.rp)+factor(group_size):log(player.mc)+factor(player.period_number) +factor(session.code)-1,
+  data = AllReg %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_all)
+```
