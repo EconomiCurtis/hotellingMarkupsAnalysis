@@ -1051,7 +1051,6 @@ Want to do a regression on periods where only transport costs changed and use pe
 
 ```{r, echo=F}
 
-<<<<<<< HEAD
 TranspoReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&TranspoChangeOnly!="NA")
 
 reg_transpo = lm(
@@ -1060,21 +1059,7 @@ reg_transpo = lm(
 )
 
 summary(reg_transpo)
-=======
-# TranspoReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&TranspoChangeOnly!="NA")
-# 
-# reg_transpo = lm(
-#   log(player.price) ~ playerNum + log(player.transport_cost) + playerNum:log(player.transport_cost) +factor(player.period_number) +factor(session.code),
-#   data = TranspoReg
-# )
-# 
-# reg_transpo = lm(
-#   log(player.price) ~ factor(group_size) + log(player.transport_cost) + factor(group_size):log(player.transport_cost)+factor(player.period_number) +factor(session.code)-1,
-#   data = TranspoReg %>% mutate(player.price = player.price + 0.01)
-# )
-# 
-# summary(reg_transpo)
->>>>>>> 0d14828082ebc70b92bc61b2b66b54bb81583301
+
 ```
 
 These results suggest that negative (insignificant) relationship between transport costs and prices in 2 player game, and positive, significant, relationship in the 4p game. These are the same results we had in the pilot study more or less. 
@@ -1192,7 +1177,7 @@ summary(reg_mc)
 Again, some nice results here. Costs (the bottom boundary) seem to matter, as costs increase, prices increase. The effect is stronger for 4p, which is intuitive. 4p games are closer to the bottom threshold, so when costs jump that will impact them more than the 2p games where they are pricing at much higher levels.
 
 
-Look at everything together
+Look at everything together (prices)
 ```{r, echo=F}
 
 AllReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21)
@@ -1205,3 +1190,94 @@ reg_all = lm(
 
 summary(reg_all)
 ```
+Look at everything together (markups)
+```{r, echo=F}
+
+sessDat<-sessDat%>% 
+  mutate(
+    Markup = (player.price-player.mc)/player.mc
+  )
+
+AllReg2<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21)
+
+
+reg_all2 = lm(
+  Markup ~ factor(group_size) + log(player.mc)+log(player.rp) +log(player.transport_cost) + factor(group_size):log(player.transport_cost)+ factor(group_size):log(player.rp)+factor(group_size):log(player.mc)+factor(player.period_number) +factor(session.code)-1,
+  data = AllReg2 %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_all2)
+```
+
+Look at average (markups)
+```{r, echo=F}
+
+reg_all3 = lm(
+  Markup ~ factor(group_size) ,
+  data = AllReg2 %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_all3)
+```
+
+AllReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21)
+
+
+reg_all = lm(
+  log(player.price) ~ factor(group_size) + log(player.mc)+log(player.rp) +log(player.transport_cost) + factor(group_size):log(player.transport_cost)+ factor(group_size):log(player.rp)+factor(group_size):log(player.mc)+factor(player.period_number) +factor(session.code)-1,
+  data = AllReg %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_all)
+```
+Look at how well theory describes prices
+```{r, echo=F}
+
+sessDat<-sessDat%>% 
+  mutate(
+    PricePred1 = player.mc+player.transport_cost/group_size,
+    PricePred2=player.rp-player.transport_cost/(2*group_size)
+  )
+
+sessDat<-sessDat%>% 
+  mutate(
+    PricePred1Err = player.price-PricePred1,
+    PricePred2Err=player.price-PricePred2,
+    PredDiff=PricePred2-PricePred1
+  )
+
+sessDat<-sessDat%>% 
+  mutate(
+   PercentError1=PricePred1Err/PredDiff
+  )
+
+PredReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21)
+
+SumDat<-PredReg%>% 
+ group_by(group_size) %>%
+  dplyr::summarise(
+  MeanError1=mean(PricePred1Err),
+  MeanError2=mean(PricePred2Err),
+  MeanError1Share = mean(PercentError1)
+  )
+
+
+PredReg2p<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21&group_size==2)
+
+reg_Pred2p1 = lm(
+  log(player.price) ~ log(PricePred1),
+  data = PredReg2p %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_Pred2p1)
+
+reg_Pred2p2 = lm(
+  log(player.price) ~ log(PricePred2),
+  data = PredReg2p %>% mutate(player.price = player.price + 0.01)
+)
+
+summary(reg_Pred2p2)
+
+```
+
+
