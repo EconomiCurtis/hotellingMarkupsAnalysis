@@ -1188,6 +1188,11 @@ reg_all = lm(
   data = AllReg %>% mutate(player.price = player.price + 0.01)
 )
 
+reg_all = lm(
+  player.price ~ factor(group_size) + player.mc+player.rp +player.transport_cost + factor(group_size):player.transport_cost+ factor(group_size):player.rp+factor(group_size):player.mc+factor(player.period_number) +factor(session.code)-1,
+  data = AllReg 
+)
+
 summary(reg_all)
 ```
 Look at everything together (markups)
@@ -1195,15 +1200,15 @@ Look at everything together (markups)
 
 sessDat<-sessDat%>% 
   mutate(
-    Markup = (player.price-player.mc)/player.mc
+    Markup = player.price/player.mc
   )
 
 AllReg2<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21)
 
 
 reg_all2 = lm(
-  Markup ~ factor(group_size) + log(player.mc)+log(player.rp) +log(player.transport_cost) + factor(group_size):log(player.transport_cost)+ factor(group_size):log(player.rp)+factor(group_size):log(player.mc)+factor(player.period_number) +factor(session.code)-1,
-  data = AllReg2 %>% mutate(player.price = player.price + 0.01)
+  Markup ~ factor(group_size) + player.mc+player.rp +player.transport_cost + factor(group_size):player.transport_cost+ factor(group_size):player.rp+factor(group_size):player.mc+factor(player.period_number) +factor(session.code)-1,
+  data = AllReg2 
 )
 
 summary(reg_all2)
