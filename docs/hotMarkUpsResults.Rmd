@@ -41,6 +41,9 @@ library(knitr)
 library(tidyr)
 library(reshape2)
 library(glue)
+library(foreign)
+library(lmtest)
+library(sandwich)
 
 source("../r/etl.R")
 
@@ -1180,6 +1183,11 @@ Again, some nice results here. Costs (the bottom boundary) seem to matter, as co
 Look at everything together (prices)
 ```{r, echo=F}
 
+sessDat<-sessDat%>% 
+  mutate(
+    Comp = ifelse(group_size==4,1,0)
+  )
+
 AllReg<-subset(sessDat, player.subperiod_number > 0 & player.subperiod_number<21)
 
 
@@ -1189,9 +1197,10 @@ reg_all = lm(
 )
 
 reg_all = lm(
-  player.price ~ factor(group_size) + player.mc+player.rp +player.transport_cost + factor(group_size):player.transport_cost+ factor(group_size):player.rp+factor(group_size):player.mc+factor(player.period_number) +factor(session.code)-1,
+  player.price ~ Comp + player.mc+player.rp +player.transport_cost +Comp:player.mc+factor(player.period_number)+Comp:player.rp+ Comp:player.transport_cost+factor(session.code),
   data = AllReg 
 )
+coeftest(reg_all, vcov = vcovHC(reg_all, type="HC1"))
 
 summary(reg_all)
 ```
@@ -1211,6 +1220,8 @@ reg_all2 = lm(
   data = AllReg2 
 )
 
+coeftest(reg_all2, vcov = vcovHC(reg_all2, type="HC1"))
+
 summary(reg_all2)
 ```
 
@@ -1219,9 +1230,15 @@ Look at average (markups)
 
 reg_all3 = lm(
   Markup ~ factor(group_size) ,
-  data = AllReg2 %>% mutate(player.price = player.price + 0.01)
+  data = AllReg2 %>% mutate(player.price = player.price)
 )
 
+coeftest(reg_all3, vcov = vcovHC(reg_all3, type="HC1"))
+
+    reg_all3 = lm(
+  Markup ~ factor(group_size)+factor(player.period_number) + factor(session.code),
+  data = AllReg2 %>% mutate(player.price = player.price)
+)
 summary(reg_all3)
 ```
 
